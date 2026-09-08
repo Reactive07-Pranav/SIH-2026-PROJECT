@@ -27,7 +27,7 @@ Full Flutter app (lib/) + Node.js backend (backend/). See individual files for f
 - `/auth/login`, `/auth/register`
 - `/api/records` (submit/list/get/verify)
 - `/api/operators/register-device`
-- `seed.js` creates test operators (OP001/test123, OP002/test123, admin/admin123)
+- `seed.js` does not create any default operator credentials
 
 ## How to Run
 ### Backend

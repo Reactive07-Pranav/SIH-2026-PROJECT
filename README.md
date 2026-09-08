@@ -15,10 +15,7 @@ Open:
 - UI: http://localhost:5173
 - API health: http://localhost:8000/api/health
 
-Demo accounts:
-
-- Officer: `OP001` / `test123`
-- Supervisor: `admin` / `admin123`
+Create a real account in the app before signing in. There are no built-in demo credentials in the codebase.
 
 The frontend is a PWA and uses IndexedDB for queued records. Camera and geolocation permissions are requested by the browser. Network reconnect and the **Sync now** control retry unsynced records automatically.
 
@@ -50,7 +47,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-Uses SQLite (`./drugdb.sqlite`) unless you set `DATABASE_URL`. Seeds `OP001` / `test123` and `admin` / `admin123` on first boot.
+Uses SQLite (`./drugdb.sqlite`) unless you set `DATABASE_URL`. No default operator credentials are seeded; create an account through the registration flow instead.
 
 Confirm: `curl http://localhost:8000/api/health` → `{"status":"ok",...}`
 

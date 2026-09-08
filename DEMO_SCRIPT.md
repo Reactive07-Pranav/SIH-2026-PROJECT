@@ -8,11 +8,11 @@ Run the single command from the repository root:
 docker compose up --build
 ```
 
-Open `http://localhost:5173`. Demo accounts are `OP001 / test123` and `admin / admin123`.
+Open `http://localhost:5173` and create a new operator account before signing in.
 
 ## Live flow
 
-1. Sign in as `OP001`.
+1. Register a new operator account and sign in.
 2. Open **Capture**, allow camera and location access, and place the printed `FRONTEND/public/reference-card.svg` beside the test strip.
 3. Freeze a frame, tap the card corners clockwise starting at top-left, then tap the strip pad center.
 4. Confirm the classification, record ID, GPS status, image hash, and signature.

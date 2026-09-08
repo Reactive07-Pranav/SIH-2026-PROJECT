@@ -26,8 +26,8 @@ Copy `.env` and configure:
 **POST /auth/login**
 ```json
 {
-  "operatorId": "OP001",
-  "password": "test123"
+  "operatorId": "your-registered-operator-id",
+  "password": "your-password"
 }
 ```
 Returns: `{ token, operatorId, name }`
@@ -35,8 +35,8 @@ Returns: `{ token, operatorId, name }`
 **POST /auth/register**
 ```json
 {
-  "operatorId": "OP003",
-  "password": "securepass",
+  "operatorId": "your-unique-operator-id",
+  "password": "your-secure-password",
   "name": "Officer Name",
   "badgeNumber": "B11111",
   "department": "Patrol"
@@ -97,10 +97,7 @@ Server health check.
 
 ## Test Credentials
 
-After running `npm run seed`:
-- Operator ID: `OP001`, Password: `test123`
-- Operator ID: `OP002`, Password: `test123`
-- Operator ID: `admin`, Password: `admin123`
+No default operator credentials are shipped with the app. Register a new operator before logging in.
 
 ## Database Schema
 

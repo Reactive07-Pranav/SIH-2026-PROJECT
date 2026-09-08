@@ -13,23 +13,15 @@ from app.config import FRONTEND_DIST, cors_origin_list
 from app.database import Base, SessionLocal, engine, wait_for_database
 from app.models import Operator, TestRecord
 from app.routers import api_router
-from app.security import hash_password
 
 
 def seed_operators() -> None:
-    defaults = [
-        ("OP001", "test123", "Officer John Smith", "OFFICER"),
-        ("OP002", "test123", "Officer Jane Doe", "OFFICER"),
-        ("admin", "admin123", "Admin User", "SUPERVISOR"),
-    ]
-    db = SessionLocal()
-    try:
-        for op_id, password, name, role in defaults:
-            if db.get(Operator, op_id) is None:
-                db.add(Operator(id=op_id, password_hash=hash_password(password), name=name, role=role))
-        db.commit()
-    finally:
-        db.close()
+    """Create no built-in operator credentials.
+
+    Operators are meant to be created through the registration flow so no demo
+    ID/password pair is embedded in the application.
+    """
+    return None
 
 
 def seed_records() -> None:

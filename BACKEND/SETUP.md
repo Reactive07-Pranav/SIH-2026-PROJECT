@@ -20,9 +20,7 @@ npm install
 npm run seed
 ```
 This creates:
-- **OP001** / password: `test123`
-- **OP002** / password: `test123`  
-- **admin** / password: `admin123`
+- No built-in demo operator IDs or passwords are shipped with the app.
 
 ### 3. Start Server
 ```bash
@@ -66,7 +64,7 @@ flutter run
 
 ### 1. Login
 - Launch app → Login screen
-- Enter: **OP001** / **test123**
+- Register a new operator account first, then sign in with that operator ID and password.
 - App will:
   - Generate ECDSA P-256 keypair (stored in Android Keystore)
   - Authenticate with backend

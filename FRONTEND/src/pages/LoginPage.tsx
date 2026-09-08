@@ -66,7 +66,7 @@ export default function LoginPage() {
             <>Already registered? <button type="button" className="btn btn-small btn-ghost" onClick={() => setMode('login')}>Sign in</button></>
           )}
         </p>
-        <p className="hint">Demo: OP001 / test123 · admin / admin123</p>
+        <p className="hint">Create a new account to sign in, or use your registered operator ID and password.</p>
       </form>
     </div>
   )

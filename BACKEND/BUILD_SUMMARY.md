@@ -124,7 +124,7 @@ backend/
 ```bash
 cd backend
 npm install
-npm run seed      # Creates OP001, OP002, admin
+npm run seed      # No default operator credentials are created
 npm start         # http://localhost:3001
 ```
 
@@ -134,10 +134,8 @@ flutter pub get
 flutter run
 ```
 
-**Login credentials:**
-- Operator ID: `OP001`, Password: `test123`
-- Operator ID: `OP002`, Password: `test123`
-- Operator ID: `admin`, Password: `admin123`
+**Login flow:**
+- Register a new operator account in the app, then sign in with that operator ID and password.
 
 **Android Emulator:** Backend URL already set to `http://10.0.2.2:3001`  
 **Physical Device:** Edit `lib/config/app_config.dart` to use host's LAN IP
