@@ -39,7 +39,7 @@ export default function AppShell() {
   return (
     <div className="shell">
       <header className="topbar">
-        <Link to="/" className="brand">⛨ EvidenceLog</Link>
+        <Link to="/" className="brand">Home</Link>
         <nav>
           <NavLink to="/scan">Scan</NavLink>
           <NavLink to="/capture">Capture</NavLink>

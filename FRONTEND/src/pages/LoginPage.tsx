@@ -32,7 +32,7 @@ export default function LoginPage() {
   return (
     <div className="center-page">
       <form onSubmit={submit} className="card" style={{ width: 'min(400px, 92vw)' }}>
-        <h1 style={{ marginTop: 0 }}>⛨ Field Evidence Logger</h1>
+        <h1 style={{ marginTop: 0 }}>Sign in</h1>
         {!navigator.onLine &&
           <WarningBanner>Device offline — cached-session login only.</WarningBanner>}
         <p>
