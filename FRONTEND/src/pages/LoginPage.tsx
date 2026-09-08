@@ -23,7 +23,7 @@ export default function LoginPage() {
       } else {
         await login(operatorId.trim(), password)
       }
-      nav('/', { replace: true })
+      nav('/capture', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally { setBusy(false) }

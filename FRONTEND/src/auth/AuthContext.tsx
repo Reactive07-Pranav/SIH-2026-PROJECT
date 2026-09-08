@@ -27,6 +27,10 @@ function persistToken(token: string) {
   localStorage.setItem('token', token)
 }
 
+function persistActiveOperator(operatorId: string) {
+  localStorage.setItem('activeOperator', operatorId)
+}
+
 async function storeSession(operatorId: string, password: string, data: {
   token: string
   role?: string
@@ -37,6 +41,7 @@ async function storeSession(operatorId: string, password: string, data: {
   const role: Role = data.role === 'SUPERVISOR' ? 'SUPERVISOR' : 'OFFICER'
   const displayName: string = data.displayName ?? data.name ?? operatorId
   persistToken(data.token)
+  persistActiveOperator(operatorId)
   await db.sessions.put({ operatorId, token: data.token, role, displayName, credHash, savedAt: new Date().toISOString() })
   await db.meta.put({ key: 'activeOperator', value: operatorId })
   return { operatorId, displayName, role, token: data.token, offline: false as const }
@@ -49,15 +54,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const active = await db.meta.get('activeOperator')
+        const storedOperator = localStorage.getItem('activeOperator')
+        const active = storedOperator ? { value: storedOperator } : await db.meta.get('activeOperator')
         if (active) {
           const row = await db.sessions.get(active.value)
           if (row) {
             persistToken(row.token)
+            persistActiveOperator(row.operatorId)
             setSession({
               operatorId: row.operatorId, displayName: row.displayName,
               role: row.role, token: row.token, offline: false
             })
+          } else {
+            localStorage.removeItem('activeOperator')
           }
         }
       } finally {
@@ -100,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function logout() {
     await db.meta.delete('activeOperator')
     localStorage.removeItem('token')
+    localStorage.removeItem('activeOperator')
     setSession(null)
   }
 

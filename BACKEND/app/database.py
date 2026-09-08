@@ -1,6 +1,6 @@
 import time
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import DATABASE_URL
@@ -16,6 +16,29 @@ if DATABASE_URL.startswith("sqlite"):
 
 engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def ensure_sqlite_legacy_columns() -> None:
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        if not inspector.has_table("test_records"):
+            return
+
+        existing_columns = {col["name"] for col in inspector.get_columns("test_records")}
+        column_defs = {
+            "payload_canonical": "TEXT",
+            "previous_record_hash": "VARCHAR(128)",
+            "record_hash": "VARCHAR(128)",
+            "signature_valid": "INTEGER",
+            "received_at": "DATETIME",
+        }
+
+        for column_name, column_type in column_defs.items():
+            if column_name not in existing_columns:
+                conn.exec_driver_sql(f"ALTER TABLE test_records ADD COLUMN {column_name} {column_type}")
 
 
 def get_db():

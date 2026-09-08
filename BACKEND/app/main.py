@@ -10,7 +10,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import FRONTEND_DIST, cors_origin_list
-from app.database import Base, SessionLocal, engine, wait_for_database
+from app.database import Base, SessionLocal, engine, ensure_sqlite_legacy_columns, wait_for_database
 from app.models import Operator, TestRecord
 from app.routers import api_router
 
@@ -63,6 +63,7 @@ def seed_records() -> None:
 async def lifespan(_app: FastAPI):
     wait_for_database()
     Base.metadata.create_all(bind=engine)
+    ensure_sqlite_legacy_columns()
     seed_operators()
     seed_records()
     yield
