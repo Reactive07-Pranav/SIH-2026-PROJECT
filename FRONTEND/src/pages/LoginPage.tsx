@@ -25,7 +25,12 @@ export default function LoginPage() {
       }
       nav('/capture', { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      const message = err instanceof Error ? err.message : 'Login failed'
+      if (message.includes('Network') || message.includes('Failed to fetch') || message.includes('ERR_CONNECTION_REFUSED') || message.includes('fetch')) {
+        setError('Backend is not reachable. Start the API server and try again.')
+      } else {
+        setError(message)
+      }
     } finally { setBusy(false) }
   }
 
