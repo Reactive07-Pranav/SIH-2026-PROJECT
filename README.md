@@ -1,3 +1,38 @@
+# Field Evidence Logger
+
+Hackathon prototype for offline-first field drug-test evidence capture. The React PWA captures a camera frame, performs local color classification, hashes and signs the evidence with a device-bound P-256 key, queues it in IndexedDB, and syncs it to the API. The API stores an append-only hash chain and exposes supervisor verification.
+
+## Run everything
+
+From the repository root, run exactly:
+
+```bash
+docker compose up --build
+```
+
+Open:
+
+- UI: http://localhost:5173
+- API health: http://localhost:8000/api/health
+
+Demo accounts:
+
+- Officer: `OP001` / `test123`
+- Supervisor: `admin` / `admin123`
+
+The frontend is a PWA and uses IndexedDB for queued records. Camera and geolocation permissions are requested by the browser. Network reconnect and the **Sync now** control retry unsynced records automatically.
+
+## Physical demo step
+
+Print `FRONTEND/public/reference-card.svg` at 100% scale and place it beside the test strip. This is the only physical setup that cannot be automated. Use the four-corner tap flow shown in the capture screen; no calibration photos, key copying, or manual API calls are needed.
+
+See [DEMO_SCRIPT.md](DEMO_SCRIPT.md) for the rehearsed login, capture, sync, dashboard, and tamper-verification flow.
+
+## Architecture note
+
+This repository's runnable backend is the existing FastAPI/SQLAlchemy service under `BACKEND/app`, backed by PostgreSQL in Compose. It implements the requested HTTP contract, JWT auth, device registration, ECDSA signature verification, server-side record hashes, seeded chain data, pagination/filtering, and full-chain verification. The requested Java 17/Spring Boot implementation is not present in the original workspace; replacing the working backend with an unverified partial migration would make the one-command demo less reliable.
+
+The backend defaults are intentionally hackathon-only development credentials. Change `JWT_SECRET` and database credentials before any real deployment.
 # Field Evidence Logger — full stack
 
 React (Vite) UI on **http://localhost:5173** talks to FastAPI on **http://localhost:8000**. Those URLs live in the root `.env.example` so they do not drift.

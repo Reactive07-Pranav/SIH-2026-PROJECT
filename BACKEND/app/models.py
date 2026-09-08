@@ -49,6 +49,9 @@ class TestRecord(Base):
     delta_e: Mapped[float] = mapped_column(Float, default=0)
     corrected_rgb: Mapped[str] = mapped_column(String(128), default="")
     signature: Mapped[str] = mapped_column(Text, default="")
+    payload_canonical: Mapped[str] = mapped_column(Text, default="")
+    previous_record_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    record_hash: Mapped[str] = mapped_column(String(128), default="", index=True)
     signature_valid: Mapped[int | None] = mapped_column(Integer, nullable=True)
     received_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

@@ -26,6 +26,8 @@ export default function DashboardPage() {
   const [to, setTo] = useState('')
   const [data, setData] = useState<Page<ServerRecord> | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [chainStatus, setChainStatus] = useState<{ valid: boolean; detail: string } | null>(null)
+  const [verifying, setVerifying] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -40,6 +42,18 @@ export default function DashboardPage() {
     return () => { cancelled = true }
   }, [page, operator, result, from, to])
 
+  async function verifyChain() {
+    setVerifying(true)
+    try {
+      const { data: response } = await api.get<{ valid: boolean; detail?: string }>('/api/records/verify')
+      setChainStatus({ valid: response.valid, detail: response.detail ?? (response.valid ? 'Hash chain is intact.' : 'Hash chain is broken.') })
+    } catch (e) {
+      setChainStatus({ valid: false, detail: e instanceof Error ? e.message : 'Chain verification failed.' })
+    } finally {
+      setVerifying(false)
+    }
+  }
+
   const geoRecords = data?.content.filter(r => r.gps) ?? []
   const center: [number, number] = geoRecords.length
     ? [geoRecords[0].gps!.lat, geoRecords[0].gps!.lon]
@@ -48,6 +62,16 @@ export default function DashboardPage() {
   return (
     <div>
       <h2>Supervisor dashboard</h2>
+      <div className="row" style={{ marginBottom: 14 }}>
+        <button className="btn" onClick={verifyChain} disabled={verifying}>
+          {verifying ? 'Verifying chain…' : 'Verify chain integrity'}
+        </button>
+      </div>
+      {chainStatus && (
+        <div className={chainStatus.valid ? 'banner' : 'banner banner-warn'}>
+          {chainStatus.valid ? 'PASS' : 'FAIL'} — {chainStatus.detail}
+        </div>
+      )}
       <div className="filters">
         <input placeholder="Operator ID…" value={operator}
                onChange={e => { setOperator(e.target.value); setPage(0) }} />
