@@ -1,0 +1,13 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.sqlite
+.env
+node_modules/
+dist/
+dev-dist/
+FRONTEND/dev-dist/
+BACKEND/backend/node_modules/
+BACKEND/backend/data/
+pgdata/
