@@ -23,6 +23,29 @@ interface AuthCtx {
 const Ctx = createContext<AuthCtx>(null!)
 export const useAuth = () => useContext(Ctx)
 
+function decodeSessionFromToken(token: string): Session | null {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return null
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')
+    const raw = atob(padded)
+    const data = JSON.parse(raw)
+    const operatorId = data.operatorId ?? data.sub
+    if (!operatorId) return null
+    const role: Role = data.role === 'SUPERVISOR' ? 'SUPERVISOR' : 'OFFICER'
+    return {
+      operatorId,
+      displayName: data.displayName ?? data.name ?? operatorId,
+      role,
+      token,
+      offline: false,
+    }
+  } catch {
+    return null
+  }
+}
+
 function persistToken(token: string) {
   localStorage.setItem('token', token)
 }
@@ -54,6 +77,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
+        const savedToken = localStorage.getItem('token')
+        if (savedToken) {
+          const restored = decodeSessionFromToken(savedToken)
+          if (restored) {
+            setSession(restored)
+            return
+          }
+          localStorage.removeItem('token')
+        }
+
         const storedOperator = localStorage.getItem('activeOperator')
         const active = storedOperator ? { value: storedOperator } : await db.meta.get('activeOperator')
         if (active) {

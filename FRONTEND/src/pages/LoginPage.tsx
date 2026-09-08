@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  if (session) return <Navigate to="/" replace />
+  if (session) return <Navigate to="/capture" replace />
 
   async function submit(e: FormEvent) {
     e.preventDefault(); setError(null); setBusy(true)
