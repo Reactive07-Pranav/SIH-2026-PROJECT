@@ -49,14 +49,16 @@ export default function AppShell() {
         <div className="topbar-right">
           <span className={`net-dot ${navigator.onLine ? 'on' : 'off'}`}
                 title={navigator.onLine ? 'Online' : 'Offline'} />
-          <button onClick={doSync} disabled={busy || pending === 0} className="btn btn-small">
-            {busy ? 'Syncing…' : `Sync now${pending ? ` (${pending})` : ''}`}
-          </button>
-          <span className="who">{session?.displayName}</span>
-          <button className="btn btn-small btn-ghost"
-                  onClick={async () => { await logout(); nav('/login') }}>
-            Logout
-          </button>
+          {session && <>
+            <button onClick={doSync} disabled={busy || pending === 0} className="btn btn-small">
+              {busy ? 'Syncing…' : `Sync now${pending ? ` (${pending})` : ''}`}
+            </button>
+            <span className="who">{session.displayName}</span>
+            <button className="btn btn-small btn-ghost"
+                    onClick={async () => { await logout(); nav('/login') }}>
+              Logout
+            </button>
+          </>}
         </div>
       </header>
       {session?.offline &&
