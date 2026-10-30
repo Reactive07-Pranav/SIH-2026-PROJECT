@@ -7,7 +7,7 @@ export function bytesToB64url(bytes: ArrayBuffer | Uint8Array): string {
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-export function b64urlToBytes(s: string): Uint8Array {
+export function b64urlToBytes(s: string): Uint8Array<ArrayBuffer> {
   const b64 = s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4)
   const bin = atob(b64)
   return Uint8Array.from(bin, c => c.charCodeAt(0))
