@@ -107,6 +107,11 @@ def submit_record(
     if owner != operator.id:
         raise HTTPException(status_code=403, detail="Operator ID in record does not match authenticated operator")
 
+    # Postgres enforces VARCHAR lengths (SQLite does not): reject instead of failing the insert with a 500.
+    for field, limit in (("deviceId", 128), ("imageHash", 128), ("timestamp", 64)):
+        if len(str(data.get(field) or "")) > limit:
+            raise HTTPException(status_code=400, detail=f"{field} must be at most {limit} characters")
+
     classification = str(data.get("classification") or "inconclusive").lower()
     if classification not in CLASSIFICATIONS:
         raise HTTPException(status_code=400, detail=f"classification must be one of {', '.join(CLASSIFICATIONS)}")

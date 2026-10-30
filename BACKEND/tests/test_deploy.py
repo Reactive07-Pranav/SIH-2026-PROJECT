@@ -22,3 +22,12 @@ def test_cors_allows_vercel_deployments_only(client):
 
     assert preflight("https://sih-2026-project-git-main-abc.vercel.app").headers.get("access-control-allow-origin")
     assert "access-control-allow-origin" not in preflight("https://evil.example.com").headers
+
+
+def test_postgres_driver_is_installed():
+    # SQLAlchemy 2.1 maps postgresql:// to psycopg (v3); a missing driver crashed the Render deploy at import.
+    from sqlalchemy import create_engine
+
+    from app.config import DATABASE_URL  # noqa: F401  (config import must not need a database)
+
+    assert create_engine("postgresql://u:p@localhost/db").dialect.driver == "psycopg"
