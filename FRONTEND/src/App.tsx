@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
 import { RequireAuth, RequireRole } from './components/guards'
@@ -7,8 +8,10 @@ import CapturePage from './pages/CapturePage'
 import ResultPage from './pages/ResultPage'
 import LogPage from './pages/LogPage'
 import RecordDetailPage from './pages/RecordDetailPage'
-import DashboardPage from './pages/DashboardPage'
 import ScanPage from './pages/ScanPage'
+
+// Leaflet is the heaviest chunk and only supervisors need it.
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
 
 function HomeRedirect() {
   const { session } = useAuth()
@@ -27,7 +30,7 @@ export default function App() {
         <Route path="/log" element={<LogPage />} />
         <Route path="/records/:id" element={<RecordDetailPage />} />
         <Route path="/dashboard"
-               element={<RequireRole role="SUPERVISOR"><DashboardPage /></RequireRole>} />
+               element={<RequireRole role="SUPERVISOR"><Suspense fallback={<div className="skel" style={{ height: 400 }} />}><DashboardPage /></Suspense></RequireRole>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

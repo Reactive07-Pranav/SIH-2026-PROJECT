@@ -1,24 +1,20 @@
-# Field Evidence Logger (PWA)
+# Field Evidence Logger: web app (PWA)
 
-React + Vite + TypeScript offline-first evidentiary logging for field drug tests.
+React 18 + Vite + TypeScript, offline-first. See the root [README](../README.md) for the full stack.
 
-## Run
-    npm install
-    npm run dev          # or: npm run dev:lan  (phone on same network)
+```bash
+npm ci
+npm run dev          # http://localhost:5173
+npm run dev:lan      # expose on the LAN (phone testing; needs HTTPS for camera)
+npm run build        # typecheck + production build into dist/
+```
 
-Point at your Spring Boot backend by editing `.env`:
-    VITE_BACKEND_URL=https://your-backend-host
+`.env.local`: `VITE_API_URL=http://localhost:8000`. Vite reads it at start-up, so restart after changing it.
 
-## Phone / camera testing
-Camera, WebCrypto and geolocation require a secure context (HTTPS or localhost).
-Use a tunnel for device testing, e.g.:
-    cloudflared tunnel --url http://localhost:5173
+## Where things live
 
-## TODO before demo
-1. Edit src/pipeline/reference.ts — replace placeholder card patch coordinates/
-   RGB references and strip signature colors with the values from
-   color_calibration_classifier.py.
-2. Backend endpoints: POST /auth/login, POST /api/operators/register-device,
-   POST /api/records, GET /api/records (Spring Page), GET /api/records/verify.
-3. Server signature check must re-canonicalize payloads with the same recursive
-   key-sort as src/crypto/sign.ts canonicalize().
+- `src/pipeline/`: perspective warp, colour-matrix calibration, LAB / ΔE classification. `reference.ts` holds the card patch layout and strip reference colours (placeholders: replace with measured kit values).
+- `src/crypto/`: device ECDSA P-256 key (non-extractable, IndexedDB), canonical JSON, signing.
+- `src/records/`: record builder (GPS, image hash, signature) and the sync queue.
+- `src/i18n.tsx`: English and Hindi strings.
+- `src/components/ui.tsx`: badges, chain of custody, and the ΔE scale.

@@ -19,6 +19,9 @@ export interface EvidenceRecord {
   signatureB64: string          // base64url ECDSA-P256 signature
   synced: 0 | 1
   syncedAt?: string
+  syncError?: string            // server rejected the record (4xx); kept out of the retry loop
+  verification?: 'verified' | 'invalid' | 'unverified'   // last server verdict
+  verifiedAt?: string
   image?: Blob                  // local-only JPEG (not sent on sync)
 }
 

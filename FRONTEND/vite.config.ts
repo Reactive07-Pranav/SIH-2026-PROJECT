@@ -18,8 +18,8 @@ export default defineConfig(({ mode }) => {
           name: 'Field Evidence Logger',
           short_name: 'EvidenceLog',
           description: 'Offline-first evidentiary logging for field drug tests',
-          theme_color: '#0f172a',
-          background_color: '#0f172a',
+          theme_color: '#13120e',
+          background_color: '#13120e',
           display: 'standalone',
           start_url: '/',
           icons: [
@@ -28,6 +28,8 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+          // Only Latin + Devanagari font subsets are needed offline.
+          globIgnores: ['**/*{cyrillic,greek,vietnamese}*', '**/noto-sans-devanagari-latin*'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
           runtimeCaching: [

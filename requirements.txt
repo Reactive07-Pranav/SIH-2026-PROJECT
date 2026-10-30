@@ -1,0 +1,11 @@
+# Python deps for the Vercel function (api/index.py). Keep in sync with BACKEND/requirements.txt
+# (tests/test_deploy.py checks this). uvicorn is not needed on Vercel; psycopg2 is for Postgres.
+fastapi==0.162.0
+sqlalchemy==2.1.6
+PyJWT==2.15.1
+bcrypt==5.0.0
+python-multipart==0.0.32
+pillow==13.0.0
+python-dotenv==1.2.4
+cryptography==50.0.2
+psycopg2-binary==2.9.10

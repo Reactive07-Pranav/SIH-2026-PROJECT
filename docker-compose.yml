@@ -7,6 +7,7 @@ services:
       - DATABASE_URL=postgresql://user:pass@db:5432/drugdb
       - CORS_ORIGINS=http://localhost:5173
       - JWT_SECRET=${JWT_SECRET:-}  # empty = random per start; set in .env for stable tokens
+      - SEED_DEMO=1  # demo accounts + synthetic records for the demo; remove for real use
     depends_on:
       db:
         condition: service_healthy

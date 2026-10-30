@@ -2,46 +2,64 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import { useNavigate } from 'react-router-dom'
 import { db, type Point } from '../db/db'
 import { useAuth } from '../auth/AuthContext'
+import { useI18n } from '../i18n'
+import { Icon } from '../components/Icon'
+import { Notice } from '../components/ui'
 
 type Mode = 'live' | 'annotate'
 
-const TAP_LABELS = ['Card TL', 'Card TR', 'Card BR', 'Card BL', 'Strip pad center']
+const TAP_KEYS = ['capture.tap0', 'capture.tap1', 'capture.tap2', 'capture.tap3', 'capture.tap4'] as const
 
 export default function CapturePage() {
   const { session } = useAuth()
+  const { t } = useI18n()
   const nav = useNavigate()
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
   const [mode, setMode] = useState<Mode>('live')
+  const modeRef = useRef<Mode | 'gone'>('live')
   const [err, setErr] = useState<string | null>(null)
+  const [ready, setReady] = useState(false)
   const [still, setStill] = useState<string | null>(null)     // data URL for annotator
   const [stillSize, setStillSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
   const [taps, setTaps] = useState<Point[]>([])               // natural-pixel coords
 
   async function startCamera() {
+    setReady(false)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } },
         audio: false
       })
+      if (modeRef.current !== 'live') { stream.getTracks().forEach(tr => tr.stop()); return } // left the page meanwhile
       streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
+        setReady(true)
       }
       setErr(null)
     } catch {
-      setErr('Camera unavailable or permission denied. Field capture requires camera access (HTTPS).')
+      setErr(t('capture.camErr'))
     }
   }
 
+  function stopCamera() {
+    streamRef.current?.getTracks().forEach(tr => tr.stop())
+    streamRef.current = null
+  }
+
   useEffect(() => {
+    modeRef.current = mode
     if (mode === 'live') void startCamera()
-    return () => {
-      streamRef.current?.getTracks().forEach(t => t.stop())
-      streamRef.current = null
-    }
+    return () => { modeRef.current = 'gone'; stopCamera() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])
+
+  function toAnnotate(dataUrl: string, w: number, h: number) {
+    setStill(dataUrl); setStillSize({ w, h }); setTaps([]); setMode('annotate'); stopCamera()
+  }
 
   function shutter() {
     const v = videoRef.current
@@ -49,11 +67,19 @@ export default function CapturePage() {
     const canvas = document.createElement('canvas')
     canvas.width = v.videoWidth; canvas.height = v.videoHeight
     canvas.getContext('2d')!.drawImage(v, 0, 0)
-    setStill(canvas.toDataURL('image/jpeg', 0.92))
-    setStillSize({ w: canvas.width, h: canvas.height })
-    setTaps([])
-    setMode('annotate')
-    streamRef.current?.getTracks().forEach(t => t.stop())
+    toAnnotate(canvas.toDataURL('image/jpeg', 0.92), canvas.width, canvas.height)
+  }
+
+  function loadFile(file: File | undefined) {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const url = String(reader.result)
+      const img = new Image()
+      img.onload = () => toAnnotate(url, img.naturalWidth, img.naturalHeight)
+      img.src = url
+    }
+    reader.readAsDataURL(file)
   }
 
   function onStageTap(e: ReactMouseEvent<HTMLImageElement>) {
@@ -66,7 +92,7 @@ export default function CapturePage() {
     const x = (e.clientX - rect.left - offX) / scale
     const y = (e.clientY - rect.top - offY) / scale
     if (x < 0 || y < 0 || x > stillSize.w || y > stillSize.h) return
-    setTaps(t => [...t, { x: Math.round(x), y: Math.round(y) }])
+    setTaps(tp => [...tp, { x: Math.round(x), y: Math.round(y) }])
   }
 
   async function confirmAndAnalyze() {
@@ -80,77 +106,93 @@ export default function CapturePage() {
     nav('/result')
   }
 
+  const fileInput = (
+    <input ref={fileRef} type="file" accept="image/*" hidden onChange={e => { loadFile(e.target.files?.[0]); e.target.value = '' }} />
+  )
+
   return (
-    <div>
-      <h2>Capture</h2>
-      <p className="hint">Operator: <b>{session?.operatorId}</b></p>
-      {err && <div className="banner banner-warn">{err}</div>}
+    <div className="capture">
+      <header className="page-head">
+        <div>
+          <h1>{mode === 'live' ? t('capture.title') : t('capture.tapTitle')}</h1>
+          <p className="page-sub">{t('f.operator')}: <span className="mono">{session?.operatorId}</span></p>
+        </div>
+      </header>
 
-      {mode === 'live' && (
-        <>
-          <div className="camera-wrap">
-            <video ref={videoRef} playsInline muted />
-            {/* Framing guides: color card (top) + test strip pad (bottom) */}
-            <svg className="overlay-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <rect x="20" y="8" width="60" height="34" rx="2" fill="none"
-                    stroke="#38bdf8" strokeWidth="0.7" strokeDasharray="3 2" />
-              <text x="50" y="6" textAnchor="middle" fill="#38bdf8" fontSize="4">COLOR CARD</text>
-              <rect x="35" y="62" width="30" height="24" rx="2" fill="none"
-                    stroke="#f59e0b" strokeWidth="0.7" strokeDasharray="3 2" />
-              <text x="50" y="92" textAnchor="middle" fill="#f59e0b" fontSize="4">TEST STRIP PAD</text>
-            </svg>
-          </div>
-          <div className="row" style={{ justifyContent: 'center', marginTop: 14 }}>
-            <button className="btn" onClick={shutter}
-                    style={{ width: 84, height: 84, borderRadius: '50%' }}
-                    aria-label="Capture frame">⬤</button>
-          </div>
-        </>
-      )}
-
-      {mode === 'annotate' && still && (
-        <>
-          <p className="hint">
-            Tap in order:{' '}
-            {TAP_LABELS.map((l, i) => (
-              <b key={l} style={{ color: taps.length === i ? '#38bdf8' : undefined }}>
-                {i + 1}. {l}{' '}
-              </b>
-            ))}
-            — progress: {taps.length}/5
-          </p>
-          <div className="camera-wrap tap-stage"
-               style={{ aspectRatio: `${stillSize.w} / ${stillSize.h}` }}>
-            <img src={still} onClick={onStageTap} alt="captured frame" />
-            <svg className="overlay-svg" viewBox={`0 0 ${stillSize.w} ${stillSize.h}`}
-                 preserveAspectRatio="none">
-              {taps.length >= 3 && (
-                <polygon
-                  points={taps.slice(0, Math.min(taps.length, 4)).map(p => `${p.x},${p.y}`).join(' ')}
-                  fill="rgba(56,189,248,0.08)" stroke="#38bdf8"
-                  strokeWidth={Math.max(2, stillSize.w / 400)} />
-              )}
-            </svg>
-            {taps.map((p, i) => (
-              <div key={i} className="tap-dot"
-                   style={{ left: `${(p.x / stillSize.w) * 100}%`, top: `${(p.y / stillSize.h) * 100}%` }}>
-                {i + 1}
+      <div className="capture-grid">
+        {mode === 'live' && (
+          <>
+            <div className="viewport">
+              <video ref={videoRef} playsInline muted />
+              <svg className="guides" viewBox="0 0 100 133" preserveAspectRatio="none" aria-hidden="true">
+                <rect x="14" y="10" width="72" height="46" rx="1.5" className="guide-card" />
+                <text x="50" y="7" textAnchor="middle" className="guide-text guide-text-card">{t('capture.card')}</text>
+                <rect x="34" y="78" width="32" height="34" rx="1.5" className="guide-pad" />
+                <text x="50" y="119" textAnchor="middle" className="guide-text guide-text-pad">{t('capture.pad')}</text>
+              </svg>
+            </div>
+            <aside className="capture-side">
+              <p className="capture-hint">{t('capture.hint')}</p>
+              <a className="print-card" href="/reference-card.svg" target="_blank" rel="noreferrer">
+                <Icon name="image" size={16} />{t('capture.printCard')}
+              </a>
+              {err && <Notice tone="warn" icon="camera">{err}</Notice>}
+              <div className="shutter-row">
+                <button className="shutter" onClick={shutter} disabled={!ready} aria-label={t('capture.shutter')}>
+                  <span />
+                </button>
+                <button className="btn btn-secondary" onClick={() => fileRef.current?.click()}>
+                  <Icon name="image" />{t('capture.useFile')}
+                </button>
+                {fileInput}
               </div>
-            ))}
-          </div>
-          <div className="row" style={{ marginTop: 14 }}>
-            <button className="btn btn-ghost" onClick={() => setTaps(t => t.slice(0, -1))}
-                    disabled={!taps.length}>Undo tap</button>
-            <button className="btn btn-ghost"
-                    onClick={() => { setTaps([]); setStill(null); setMode('live') }}>
-              Discard / retake
-            </button>
-            <button className="btn" onClick={confirmAndAnalyze} disabled={taps.length !== 5}>
-              Analyze →
-            </button>
-          </div>
-        </>
-      )}
+            </aside>
+          </>
+        )}
+
+        {mode === 'annotate' && still && (
+          <>
+            <div className="viewport viewport-tap" style={{ aspectRatio: `${stillSize.w} / ${stillSize.h}` }}>
+              <img src={still} onClick={onStageTap} alt="" draggable={false} />
+              <svg className="guides" viewBox={`0 0 ${stillSize.w} ${stillSize.h}`} preserveAspectRatio="none" aria-hidden="true">
+                {taps.length >= 2 && (
+                  <polygon points={taps.slice(0, Math.min(taps.length, 4)).map(p => `${p.x},${p.y}`).join(' ')}
+                           className="tap-quad" strokeWidth={Math.max(2, stillSize.w / 380)} />
+                )}
+              </svg>
+              {taps.map((p, i) => (
+                <span key={i} className={`tap-dot ${i === 4 ? 'tap-dot-pad' : ''}`}
+                      style={{ left: `${(p.x / stillSize.w) * 100}%`, top: `${(p.y / stillSize.h) * 100}%` }}>
+                  {i + 1}
+                </span>
+              ))}
+            </div>
+            <aside className="capture-side">
+              <ol className="steps">
+                {TAP_KEYS.map((k, i) => (
+                  <li key={k} className={i < taps.length ? 'step-done' : i === taps.length ? 'step-now' : 'step-todo'}
+                      aria-current={i === taps.length ? 'step' : undefined}>
+                    <span className="step-num">{i < taps.length ? <Icon name="check" size={14} /> : i + 1}</span>
+                    {t(k)}
+                  </li>
+                ))}
+              </ol>
+              <p className="hint" aria-live="polite">{taps.length === 5 ? t('capture.done') : `${taps.length}/5`}</p>
+              <div className="btn-row">
+                <button className="btn btn-primary btn-lg" onClick={confirmAndAnalyze} disabled={taps.length !== 5}>
+                  {t('capture.analyze')}<Icon name="arrowRight" />
+                </button>
+                <button className="btn btn-secondary" onClick={() => setTaps(tp => tp.slice(0, -1))} disabled={!taps.length}>
+                  <Icon name="undo" />{t('capture.undo')}
+                </button>
+                <button className="btn btn-ghost" onClick={() => { setTaps([]); setStill(null); setMode('live') }}>
+                  <Icon name="camera" />{t('capture.retake')}
+                </button>
+              </div>
+            </aside>
+          </>
+        )}
+      </div>
     </div>
   )
 }

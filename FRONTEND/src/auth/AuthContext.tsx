@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Role } from '../config'
 import { db } from '../db/db'
-import { sha256HexText } from '../crypto/sign'
 import api, { ApiError } from '../api/client'
+import { sha256HexText } from '../crypto/sign'
 
 export interface Session {
   operatorId: string
@@ -27,13 +27,24 @@ function persistToken(token: string) {
   localStorage.setItem('token', token)
 }
 
+/** Slow salted hash for the offline-login cache, so a stolen device does not leak passwords cheaply. */
+async function credentialHash(operatorId: string, password: string): Promise<string> {
+  const te = new TextEncoder()
+  const key = await crypto.subtle.importKey('raw', te.encode(password), 'PBKDF2', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: te.encode(`evidence-logger:${operatorId}`), iterations: 210_000 },
+    key, 256
+  )
+  return 'pbkdf2$' + [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 async function storeSession(operatorId: string, password: string, data: {
   token: string
   role?: string
   displayName?: string
   name?: string
 }) {
-  const credHash = await sha256HexText(`${operatorId}:${password}`)
+  const credHash = await credentialHash(operatorId, password)
   const role: Role = data.role === 'SUPERVISOR' ? 'SUPERVISOR' : 'OFFICER'
   const displayName: string = data.displayName ?? data.name ?? operatorId
   persistToken(data.token)
@@ -76,9 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (err instanceof ApiError && err.status === 401) throw new AuthFail('Invalid operator ID or password')
       if (navigator.onLine) throw err
 
-      const credHash = await sha256HexText(`${operatorId}:${password}`)
+      const credHash = await credentialHash(operatorId, password)
       const cached = await db.sessions.get(operatorId)
-      if (cached && cached.credHash === credHash) {
+      // Caches written before the PBKDF2 switch hold plain SHA-256; accept them once (re-hashed on next online login).
+      const legacy = cached && !cached.credHash.startsWith('pbkdf2$') && cached.credHash === await sha256HexText(`${operatorId}:${password}`)
+      if (cached && (cached.credHash === credHash || legacy)) {
         persistToken(cached.token)
         setSession({
           operatorId: cached.operatorId, displayName: cached.displayName,

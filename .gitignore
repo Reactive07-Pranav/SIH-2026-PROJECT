@@ -1,15 +1,21 @@
+# Python
 .venv/
 venv/
 __pycache__/
 *.pyc
+.pytest_cache/
 *.sqlite
-.env
+*.db
+
+# Node / build
 node_modules/
 dist/
 dev-dist/
-FRONTEND/dev-dist/
-BACKEND/backend/node_modules/
-BACKEND/backend/data/
+
+# Local env and tooling
+.env
+.env.local
+.vercel/
+.claude/
+.impeccable/
 pgdata/
-*.db
-.pytest_cache/

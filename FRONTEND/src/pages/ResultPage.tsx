@@ -4,14 +4,18 @@ import { db, type EvidenceRecord } from '../db/db'
 import { runPipeline, type PipelineOutcome } from '../pipeline'
 import { buildEvidenceRecord } from '../records/build'
 import { useAuth } from '../auth/AuthContext'
-import { WarningBanner } from '../components/ui'
+import { useI18n } from '../i18n'
+import { Icon } from '../components/Icon'
+import { CustodyChain, DeltaEScale, Notice, Swatch } from '../components/ui'
+import { DELTA_E_MAX } from '../pipeline/reference'
 
 export default function ResultPage() {
   const { session } = useAuth()
+  const { t, fmtDate } = useI18n()
   const nav = useNavigate()
   const [outcome, setOutcome] = useState<PipelineOutcome | null>(null)
   const [record, setRecord] = useState<EvidenceRecord | null>(null)
-  const [stage, setStage] = useState('Processing frame…')
+  const [stage, setStage] = useState<'processing' | 'signing'>('processing')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -19,7 +23,7 @@ export default function ResultPage() {
     ;(async () => {
       try {
         const draft = await db.drafts.get('latest')
-        if (!draft) { setError('No captured frame found.'); return }
+        if (!draft) { setError(t('result.noFrame')); return }
 
         const bitmap = await createImageBitmap(draft.blob)
         const canvas = document.createElement('canvas')
@@ -31,7 +35,7 @@ export default function ResultPage() {
         const oc = runPipeline(imageData, draft.corners)
         if (cancelled) return
         setOutcome(oc)
-        setStage('Acquiring GPS & signing record…')
+        setStage('signing')
 
         const rec = await buildEvidenceRecord(oc, draft.blob, session!.operatorId)
         if (cancelled) return
@@ -46,63 +50,75 @@ export default function ResultPage() {
   }, [])
 
   if (error) return (
-    <div className="card">
-      <WarningBanner>{error}</WarningBanner>
-      <button className="btn" onClick={() => nav('/capture')}>Retake</button>
+    <div className="stack">
+      <Notice tone="error">{error}</Notice>
+      <div><button className="btn btn-primary" onClick={() => nav('/capture')}><Icon name="camera" />{t('capture.retake')}</button></div>
     </div>
   )
 
-  if (!outcome || !record) return <div className="center-page">{stage}</div>
+  if (!outcome || !record) return (
+    <div className="working" aria-busy="true">
+      <span className="working-ruler" />
+      <p>{stage === 'processing' ? t('result.processing') : t('result.signing')}</p>
+    </div>
+  )
 
-  const inc = outcome.classification === 'inconclusive'
+  const c = outcome.classification
   const rgb = outcome.correctedRgb.map(Math.round)
 
   return (
-    <div>
-      <h2>Result</h2>
-      {inc && (
-        <WarningBanner>
-          INCONCLUSIVE — ΔE {outcome.deltaE.toFixed(1)} is outside the confidence band or the
-          classes are ambiguous. Retake under better lighting, keeping the card flat and unshadowed.
-        </WarningBanner>
-      )}
-      {!outcome.calibrated && (
-        <WarningBanner>Uncalibrated capture (no card corners) — treat as reference only.</WarningBanner>
-      )}
-
-      <div className="card">
-        <div className={`big-result ${outcome.classification}`}>
-          {outcome.classification.toUpperCase()}
+    <div className="result">
+      <section className={`verdict-panel verdict-${c}`}>
+        <div className="verdict">
+          <Icon name={c} size={44} />
+          <div>
+            <div className="verdict-word">{t(`cls.${c}`)}</div>
+            <p className="verdict-sub">
+              {t('result.nearest', { d: outcome.deltaE.toFixed(1), max: DELTA_E_MAX })}
+            </p>
+          </div>
         </div>
-        <dl className="kv">
-          <dt>ΔE (nearest class)</dt><dd>{outcome.deltaE.toFixed(2)}</dd>
-          <dt>ΔE by class</dt>
-          <dd>{Object.entries(outcome.deltaEs).map(([k, v]) => `${k}: ${v.toFixed(2)}`).join(' · ')}</dd>
-          <dt>Corrected RGB</dt>
-          <dd>
-            <span style={{ display: 'inline-block', width: 14, height: 14, marginRight: 6,
-              verticalAlign: -2, background: `rgb(${rgb.join(',')})`, border: '1px solid #555' }} />
-            {rgb.join(', ')}
-          </dd>
-          <dt>Record ID</dt><dd><Link to={`/records/${record.id}`}>{record.id}</Link></dd>
-          <dt>GPS</dt>
-          <dd>{record.gps
-            ? `${record.gps.lat.toFixed(5)}, ${record.gps.lon.toFixed(5)} (±${Math.round(record.gps.accuracy)}m)`
-            : 'unavailable'}</dd>
-          <dt>Signature</dt><dd style={{ fontSize: 11 }}>{record.signatureB64.slice(0, 40)}…</dd>
-        </dl>
-        {outcome.cardPatchDeltas && (
-          <p className="hint">
-            Calibration residual per card patch (RGB units):{' '}
-            {outcome.cardPatchDeltas.map(d => d.toFixed(1)).join(', ')}
-          </p>
-        )}
+        <DeltaEScale deltaEs={outcome.deltaEs} sampleRgb={outcome.correctedRgb} />
+      </section>
+
+      {c === 'inconclusive' && <Notice tone="warn">{t('result.inconclusive')}</Notice>}
+      {!outcome.calibrated && <Notice tone="warn">{t('result.uncalibrated')}</Notice>}
+
+      <div className="result-grid">
+        <section className="panel">
+          <div className="panel-head"><h2>{t('custody.title')}</h2></div>
+          <div className="panel-body">
+            <CustodyChain signed={!!record.signatureB64} synced={record.synced === 1} sig={record.verification ?? null}
+                          capturedAt={record.timestamp} syncedAt={record.syncedAt} />
+            <p className="hint ok-line"><Icon name="key" size={15} />{t('result.signedSaved')}</p>
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel-body">
+            <dl className="facts">
+              <dt>{t('f.recordId')}</dt><dd className="mono">{record.id}</dd>
+              <dt>{t('f.time')}</dt><dd>{fmtDate(record.timestamp)}</dd>
+              <dt>{t('f.gps')}</dt>
+              <dd className={record.gps ? 'mono' : undefined}>{record.gps
+                ? `${record.gps.lat.toFixed(5)}, ${record.gps.lon.toFixed(5)} ±${Math.round(record.gps.accuracy)} m`
+                : t('f.gpsNone')}</dd>
+              <dt>{t('f.rgb')}</dt><dd className="mono swatch-line"><Swatch rgb={rgb} />{rgb.join(', ')}</dd>
+              <dt>{t('f.signature')}</dt><dd className="mono truncate">{record.signatureB64}</dd>
+              {outcome.cardPatchDeltas && (<>
+                <dt>{t('f.calib')}</dt>
+                <dd className="mono">{outcome.cardPatchDeltas.map(d => d.toFixed(1)).join(' · ')}</dd>
+              </>)}
+            </dl>
+          </div>
+        </section>
       </div>
 
-      <div className="row">
-        <button className={inc ? 'btn' : 'btn btn-ghost'} onClick={() => nav('/capture')}>Retake</button>
-        <Link className="btn btn-ghost" to="/log">Open log</Link>
-        <Link className="btn btn-ghost" to={`/records/${record.id}`}>Record detail</Link>
+      <div className="btn-row">
+        <button className={c === 'inconclusive' ? 'btn btn-primary' : 'btn btn-secondary'} onClick={() => nav('/capture')}>
+          <Icon name="camera" />{c === 'inconclusive' ? t('capture.retake') : t('result.again')}
+        </button>
+        <Link className="btn btn-ghost" to={`/records/${record.id}`}>{t('result.detail')}<Icon name="arrowRight" /></Link>
       </div>
     </div>
   )

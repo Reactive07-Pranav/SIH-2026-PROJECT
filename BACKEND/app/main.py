@@ -6,35 +6,30 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.config import FRONTEND_DIST, cors_origin_list
-from app.database import Base, SessionLocal, add_missing_columns, engine, wait_for_database
-from app.models import Operator
+from app.config import FRONTEND_DIST, SEED_DEMO, cors_origin_list
+from app.database import Base, add_missing_columns, engine, wait_for_database
 from app.routers import api_router
-from app.security import hash_password
+
+_initialized = False
 
 
-def seed_operators() -> None:
-    defaults = [
-        ("OP001", "test123", "SI Arjun Mehta", "OFFICER"),
-        ("OP002", "test123", "SI Priya Nair", "OFFICER"),
-        ("admin", "admin123", "Insp. R. Sharma", "SUPERVISOR"),
-    ]
-    db = SessionLocal()
-    try:
-        for op_id, password, name, role in defaults:
-            if db.get(Operator, op_id) is None:
-                db.add(Operator(id=op_id, password_hash=hash_password(password), name=name, role=role))
-        db.commit()
-    finally:
-        db.close()
+def init_db() -> None:
+    """Create tables. No accounts are built in; demo data only when SEED_DEMO=1 (or via scripts/seed_demo.py)."""
+    global _initialized
+    if _initialized:
+        return
+    wait_for_database()
+    Base.metadata.create_all(bind=engine)
+    add_missing_columns()
+    if SEED_DEMO:
+        from app.demo import seed_demo
+        seed_demo()
+    _initialized = True
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    wait_for_database()
-    Base.metadata.create_all(bind=engine)
-    add_missing_columns()
-    seed_operators()
+    init_db()
     yield
 
 

@@ -1,102 +1,151 @@
-# Field Evidence Logger — full stack
+# Field Evidence Logger
 
-React (Vite) UI on **http://localhost:5173** talks to FastAPI on **http://localhost:8000**. Those URLs live in the root `.env.example` so they do not drift.
+Smart India Hackathon 2026. A field officer photographs a presumptive drug-test strip next to a colour card. The app colour-corrects the photo, classifies the strip (positive / negative / inconclusive), and **signs the record on the device** before it leaves the phone. Supervisors see every synced record on a map and can prove any record is untampered.
+
+- **Calibrated, not eyeballed.** A homography warp of the colour card plus a least-squares colour matrix corrects the strip colour; the verdict is read off a ΔE scale against reference colours.
+- **Tamper-evident.** Each record is signed with a non-extractable ECDSA P-256 key (WebCrypto). The server verifies the exact signed bytes against the device's registered public key.
+- **Offline-first.** Records queue in IndexedDB and sync when the network returns. Offline sign-in uses a PBKDF2-hashed credential cache.
+- **English + हिन्दी**, switchable on every screen.
+
+## Layout
+
+```
+api/index.py        Vercel Python function: serves the FastAPI app at /api/*
+vercel.json         one Vercel project: static Vite build + the API function
+BACKEND/            FastAPI + SQLAlchemy API (SQLite locally, Postgres in Docker / Vercel)
+  app/              main, config, models, security (JWT), signatures (ECDSA), predict (quick scan), demo (seed data)
+  app/routers/      auth, records, operators, scan, history, health
+  scripts/          seed_demo.py: demo accounts + synthetic signed records
+  tests/            pytest suite
+FRONTEND/           React 18 + Vite PWA
+  public/reference-card.svg   printable colour card matching the calibration layout
+  src/pipeline/     warp, calibration, LAB / ΔE classification (runs in the browser)
+  src/crypto/       device key, signing, canonical JSON
+  src/records/      record builder, offline sync queue
+  src/pages/        Login, Capture, Result, Quick scan, Evidence log, Record detail, Dashboard
+```
 
 ## Run locally (two terminals)
 
-### 1. Backend
+Tested with Python 3.14 and Node 24.
+
+### 1. Backend: http://localhost:8000
 
 ```bash
-cd backend
+cd BACKEND
 python -m venv .venv
-# Windows: .venv\Scripts\activate
-# macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
+.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+python scripts/seed_demo.py       # optional: demo accounts + 28 synthetic signed records
 uvicorn app.main:app --reload --port 8000
 ```
 
-Uses SQLite (`./drugdb.sqlite`) unless you set `DATABASE_URL`. Seeds `OP001` / `test123` and `admin` / `admin123` on first boot.
+Check: `curl http://localhost:8000/api/health` → `{"status":"ok",...}`
 
-Confirm: `curl http://localhost:8000/api/health` → `{"status":"ok",...}`
-
-CORS preflight:  
-`curl -i -X OPTIONS http://localhost:8000/api/health -H "Origin: http://localhost:5173" -H "Access-Control-Request-Method: GET"`
-
-### 2. Frontend
+### 2. Frontend: http://localhost:5173
 
 ```bash
-cd frontend
-npm install
+cd FRONTEND
+npm ci
 npm run dev
 ```
 
-`frontend/.env.local` must contain `VITE_API_URL=http://localhost:8000`. **Restart Vite after changing it** — env vars are read at process start, not on HMR.
+`FRONTEND/.env.local` must contain `VITE_API_URL=http://localhost:8000` (see `.env.example`). Restart Vite after changing it.
 
-Open http://localhost:5173 → register or sign in → **Scan** → upload an image.
+### Demo accounts
+
+The API ships with **no built-in accounts**. Officers register in the app. The demo accounts below exist only after `python scripts/seed_demo.py` (or `SEED_DEMO=1`), and the login page lists them only when they exist.
+
+| Operator ID | Password | Role |
+| --- | --- | --- |
+| `OP001` | `test123` | Officer |
+| `OP002` | `test123` | Officer |
+| `admin` | `admin123` | Supervisor |
+
+Self-registration always creates an **Officer**. Supervisors are provisioned on the server only.
+
+## Demo script (about 3 minutes)
+
+1. **Laptop, sign in as `admin`.** The dashboard shows synced records across India, the result split, and *Signatures verified 96%* with one **Invalid** record: a seeded record whose result was changed after signing.
+2. **Phone, sign in as `OP001`.** Print `FRONTEND/public/reference-card.svg` at 100% (105 × 75 mm; also linked on the Capture screen). Open *Capture*, frame the colour card and the strip, take the photo, and tap the 4 card corners and the pad centre. (No camera? Use *Use a saved photo*.)
+3. **Result.** The verdict sits on the ΔE scale between the two references. The chain of custody shows *Captured → Signed*.
+4. **Sync** (side rail or the phone's top bar). Open the record and press **Verify on server**: *ECDSA P-256 signature matches the registered device key.*
+5. Switch to **हिन्दी** at any point.
+
+Camera, WebCrypto and GPS need a secure context: `localhost`, or HTTPS on a phone (for example `cloudflared tunnel --url http://localhost:5173`).
+
+## Tests
+
+```bash
+cd BACKEND
+.venv\Scripts\python -m pytest -q
+```
+
+Covers login, no built-in accounts on a plain boot, the Vercel entry point and its requirements, the supervisor self-promotion block, signed-record verification (WebCrypto raw r‖s and DER formats), tamper detection, operator scoping, date filters, stats, upload decompression-bomb rejection, and SPA path traversal.
+
+```bash
+cd FRONTEND
+npm run build                    # tsc --noEmit + vite build
+```
+
+## Deploy on Vercel (UI + API in one project)
+
+1. Import the GitHub repo into Vercel. Keep the **root directory** as the repo root; `vercel.json` sets the build (`FRONTEND` → `FRONTEND/dist`) and the Python function (`api/index.py`).
+2. Add environment variables (Project → Settings → Environment Variables):
+
+   | Name | Value |
+   | --- | --- |
+   | `JWT_SECRET` | a long random string: `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+   | `DATABASE_URL` | a Postgres URL (Vercel Postgres / Neon). Without it the API uses SQLite in `/tmp`, which is wiped on every cold start. |
+   | `SEED_DEMO` | `1` for a demo deployment (demo accounts + records); leave unset for real use |
+
+3. Deploy. The UI and `/api/*` share one origin, so no CORS or `VITE_API_URL` is needed.
+
+Check: `https://<your-app>.vercel.app/api/health` → `{"status":"ok", ...}`. Any missing setting is listed under `warnings`.
 
 ## Docker (Postgres + both apps)
-
-From the repo root (no extra setup):
 
 ```bash
 docker compose up --build
 ```
 
-- UI: http://localhost:5173  
-- API: http://localhost:8000/api/health  
-- Postgres: localhost:5432 (`user` / `pass` / `drugdb`)
+- UI: http://localhost:5173 · API: http://localhost:8000/api/health · Postgres: localhost:5432 (`user` / `pass` / `drugdb`)
+- Compose sets `SEED_DEMO=1`, so the demo accounts exist. Remove it for real use.
+- Set `JWT_SECRET` in a root `.env` for tokens that survive restarts. If it is empty, the API generates a random secret on each start. **Always set it when running more than one uvicorn worker**, or each worker rejects the others' tokens.
 
-The **browser** still calls `http://localhost:8000` (host port map). Containers reach Postgres as host `db`, not `localhost`. Vite’s proxy target inside Compose is `http://backend:8000` via `VITE_PROXY_TARGET`.
-
-## Production: one origin (no CORS)
+## Production: one origin
 
 ```bash
-cd frontend && npm run build
-cd ../backend
-set FRONTEND_DIST=../FRONTEND/dist   # PowerShell: $env:FRONTEND_DIST="..\FRONTEND\dist"
+cd FRONTEND && npm run build
+cd ../BACKEND
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-FastAPI serves `dist/` so the UI and `/api/*` share `http://localhost:8000`.
+FastAPI serves `FRONTEND/dist` (or `FRONTEND_DIST`) so the UI and `/api/*` share one origin and CORS is not needed.
 
-## API (JWT)
+## API
 
-| Method | Path | Auth |
-| --- | --- | --- |
-| GET | `/api/health` | no |
-| POST | `/api/auth/register` | no |
-| POST | `/api/auth/login` | no |
-| POST | `/api/scan` | Bearer, `multipart/form-data` field `file` |
-| GET | `/api/history` | Bearer, this user’s scans only |
-| POST | `/api/records` | Bearer (field capture sync) |
-| GET | `/api/records` | Bearer |
+| Method | Path | Auth | Notes |
+| --- | --- | --- | --- |
+| GET | `/api/health` | none | |
+| POST | `/api/auth/register` | none | always creates `OFFICER` |
+| POST | `/api/auth/login` | none | returns JWT |
+| POST | `/api/operators/register-device` | Bearer | `deviceId`, base64 SPKI P-256 `publicKey(Spki)` |
+| POST | `/api/records` | Bearer | `{record, payloadCanonical, signature}`; verified on arrival |
+| GET | `/api/records` | Bearer | `page`, `size`, `operator`, `result`, `from`, `to` (YYYY-MM-DD); officers see only their own |
+| GET | `/api/records/stats` | Bearer | totals by result and signature status |
+| GET | `/api/records/verify?recordId=` | Bearer | re-verifies the stored signature live |
+| POST | `/api/scan` | Bearer | multipart `file` (≤10 MB, ≤40 MP); uncalibrated quick check |
+| GET | `/api/history` | Bearer | last 50 quick scans |
 
-Authorization is attached by the axios interceptor from `localStorage.token` (and IndexedDB session).
+### Signature model
 
-## Troubleshooting (issues actually hit in this repo)
+The browser builds the record, canonicalises it (recursive key sort, no whitespace) and signs those bytes with ECDSA P-256 / SHA-256. Sync sends the canonical string itself, so the server verifies the exact bytes. Records from a device with no registered key are stored as *unverified* and checked again whenever `/verify` is called.
 
-1. **`ERR_CONNECTION_REFUSED` on port 8000**  
-   There was no FastAPI app; only a Node server under `backend/backend` on port **3001**, while the UI defaulted to **8080** or an empty `VITE_BACKEND_URL`. Fix: run `uvicorn app.main:app --port 8000` and set `VITE_API_URL=http://localhost:8000`.
+## Known limits
 
-2. **CORS `No 'Access-Control-Allow-Origin'`**  
-   Express had `cors()` but the UI never reached it on 8000. FastAPI now uses `CORSMiddleware` with `allow_origins` from `CORS_ORIGINS` (default `http://localhost:5173`) and `allow_credentials=True`. Do not use `*` with credentials.
-
-3. **Port / proxy mismatch**  
-   `vite.config` proxied `/api` to `http://localhost:3001`. Proxy target is now `8000` locally, and `http://backend:8000` in Docker (`VITE_PROXY_TARGET`). Axios uses `VITE_API_URL` so the browser talks to the host-mapped API; the proxy is a fallback for relative `/api` calls.
-
-4. **JWT on the first call, missing later**  
-   `register-device` used raw `fetch` with **no** `Authorization` header. All traffic now goes through one axios instance with a request interceptor that sets `Bearer` from `localStorage` / IndexedDB. CORS `allow_headers=["*"]` lets `Authorization` through on preflight.
-
-5. **Stale UI after env changes (PWA)**  
-   `FRONTEND/.env` was `VITE_BACKEND_URL=` (empty). Vite env is compile-time; the PWA service worker was also matching the wrong API origin. After changing `.env.local`, restart `npm run dev` and hard-reload (or unregister the service worker) so Workbox is not serving an old client.
-
-6. **Docker `localhost` confusion**  
-   `DATABASE_URL` in Compose uses host `db`, not `localhost`. `VITE_API_URL` stays `http://localhost:8000` because that value is used **in the browser on the host**. A container-internal `localhost` would point at itself.
-
-7. **Mixed content**  
-   Keep both apps on `http://` in dev. Serving the UI over HTTPS while `VITE_API_URL` is `http://localhost:8000` will be blocked.
-
-8. **Requests work in curl/Postman but not the browser**  
-   That is CORS or a missing `Authorization` header, not a broken classifier. Check OPTIONS (step 1) and the interceptor.
-
-Scan predictions are computed from the image (center-crop LAB distance to immunoassay reference hues), then stored per user for `/api/history`.
+- Colour-card patch positions and strip reference colours in `FRONTEND/src/pipeline/reference.ts` are placeholders until real kit values are measured.
+- Card corners are tapped by hand; auto-detection is not implemented.
+- The captured photo stays on the device; only its SHA-256 is synced.
+- The dashboard map loads live OpenStreetMap tiles; with no venue internet the map is blank (markers and the table still work).
+- Clearing site data deletes the device signing key. A new key is generated and registered on the next sync.

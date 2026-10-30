@@ -13,6 +13,7 @@ _tmp = Path(tempfile.mkdtemp(prefix="evidence-test-"))
 os.environ["DATABASE_URL"] = f"sqlite:///{(_tmp / 'test.sqlite').as_posix()}"
 os.environ["FRONTEND_DIST"] = str(_tmp / "dist")
 os.environ["JWT_SECRET"] = "test-secret-" + "x" * 32
+os.environ["SEED_DEMO"] = "1"  # tests sign in with the demo accounts
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from fastapi.testclient import TestClient  # noqa: E402

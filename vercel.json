@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci --prefix FRONTEND",
+  "buildCommand": "npm run build --prefix FRONTEND",
+  "outputDirectory": "FRONTEND/dist",
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 30,
+      "excludeFiles": "{FRONTEND/**,BACKEND/tests/**,BACKEND/scripts/**,**/.venv/**,**/__pycache__/**,**/*.sqlite}"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}
