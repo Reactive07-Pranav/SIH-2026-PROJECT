@@ -4,6 +4,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  // On Vercel the UI is static and the API lives on Render: without the URL every API call would hit index.html.
+  if (env.VERCEL && !/^https:\/\//.test(env.VITE_API_URL ?? '')) {
+    throw new Error('VITE_API_URL is not set to an https:// Render URL. Add it in Vercel → Settings → Environment Variables, then redeploy. See DEPLOY.md.')
+  }
   const apiUrl = env.VITE_API_URL ?? 'http://localhost:8000'
   let apiOrigin = ''
   try { apiOrigin = new URL(apiUrl).origin } catch { /* relative / empty URL */ }

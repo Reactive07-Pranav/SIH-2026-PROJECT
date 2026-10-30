@@ -90,25 +90,9 @@ npm run build                    # tsc --noEmit + vite build
 
 ## Deploy: backend on Render, frontend on Vercel
 
-### 1. Backend + database on Render
+Step-by-step guide with every setting, checks and troubleshooting: **[DEPLOY.md](DEPLOY.md)**.
 
-1. Render dashboard → **New → Blueprint** → connect this GitHub repo → **Apply**. `render.yaml` creates:
-   - `sih-evidence-api`: a Python web service from `BACKEND/` (`uvicorn app.main:app`);
-   - `sih-evidence-db`: a Postgres database, wired in as `DATABASE_URL`.
-   Render generates `JWT_SECRET` itself, so it never appears in the repo or in chat.
-2. When it is live, open `https://<service>.onrender.com/api/health` → `{"status":"ok","demo":true,...}`. Copy the service URL.
-
-`SEED_DEMO=1` is set, so the demo accounts exist. Set it to `0` in Render for real use.
-
-### 2. Frontend on Vercel
-
-1. Vercel → **Add New → Project** → import this repo. Keep the root directory as the repo root; `vercel.json` builds `FRONTEND`.
-2. Add the environment variable `VITE_API_URL` = the Render URL from step 1 (no trailing slash), then **Deploy**.
-3. The API accepts any `https://sih-2026-project…vercel.app` origin (`CORS_ORIGIN_REGEX` in `render.yaml`). If your Vercel project has another name, change that value in Render.
-
-`VITE_API_URL` is baked in at build time. After changing it, redeploy on Vercel.
-
-**Free-tier notes.** A free Render service sleeps after about 15 minutes idle, and the first request then takes up to a minute: open the app once before the demo. Render's free Postgres expires after 30 days unless you upgrade.
+In short: Render → **New → Blueprint** → this repo → **Apply** (`render.yaml` creates the API + Postgres). Then Vercel → import this repo, set `VITE_API_URL` to the Render URL → **Deploy**.
 
 ## Docker (Postgres + both apps)
 
