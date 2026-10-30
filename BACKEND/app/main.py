@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import FRONTEND_DIST, cors_origin_list
-from app.database import Base, SessionLocal, engine, wait_for_database
+from app.database import Base, SessionLocal, add_missing_columns, engine, wait_for_database
 from app.models import Operator
 from app.routers import api_router
 from app.security import hash_password
@@ -15,9 +15,9 @@ from app.security import hash_password
 
 def seed_operators() -> None:
     defaults = [
-        ("OP001", "test123", "Officer John Smith", "OFFICER"),
-        ("OP002", "test123", "Officer Jane Doe", "OFFICER"),
-        ("admin", "admin123", "Admin User", "SUPERVISOR"),
+        ("OP001", "test123", "SI Arjun Mehta", "OFFICER"),
+        ("OP002", "test123", "SI Priya Nair", "OFFICER"),
+        ("admin", "admin123", "Insp. R. Sharma", "SUPERVISOR"),
     ]
     db = SessionLocal()
     try:
@@ -33,6 +33,7 @@ def seed_operators() -> None:
 async def lifespan(_app: FastAPI):
     wait_for_database()
     Base.metadata.create_all(bind=engine)
+    add_missing_columns()
     seed_operators()
     yield
 
@@ -60,9 +61,12 @@ if dist is not None:
     if assets.is_dir():
         app.mount("/assets", StaticFiles(directory=assets), name="assets")
 
+    dist_root = dist.resolve()
+
     @app.get("/{full_path:path}")
     async def spa(full_path: str):
-        file_path = dist / full_path
-        if full_path and file_path.is_file():
+        file_path = (dist_root / full_path).resolve()
+        # resolve() + containment check blocks "../" traversal out of dist/.
+        if full_path and file_path.is_relative_to(dist_root) and file_path.is_file():
             return FileResponse(file_path)
-        return FileResponse(dist / "index.html")
+        return FileResponse(dist_root / "index.html")

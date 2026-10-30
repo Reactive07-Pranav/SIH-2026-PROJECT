@@ -7,3 +7,5 @@ data/
 backend/node_modules/
 backend/data/
 .env
+.pytest_cache/
+tests/__pycache__/

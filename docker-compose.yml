@@ -1,18 +1,18 @@
 services:
   backend:
-    build: ./backend
+    build: ./BACKEND
     ports:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://user:pass@db:5432/drugdb
       - CORS_ORIGINS=http://localhost:5173
-      - JWT_SECRET=hackathon-secret-change-me
+      - JWT_SECRET=${JWT_SECRET:-}  # empty = random per start; set in .env for stable tokens
     depends_on:
       db:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build: ./FRONTEND
     ports:
       - "5173:5173"
     environment:

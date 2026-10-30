@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.config import MAX_UPLOAD_BYTES
 from app.database import get_db
 from app.models import Operator, ScanHistory
 from app.predict import predict_image
@@ -15,12 +16,14 @@ async def scan(
     operator: Operator = Depends(get_current_operator),
     db: Session = Depends(get_db),
 ):
-    data = await file.read()
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
     if not data:
         raise HTTPException(status_code=400, detail="Empty image")
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"Image larger than {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
     try:
         result = predict_image(data)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — Pillow raises many types for bad input
         raise HTTPException(status_code=400, detail=f"Could not read image: {exc}") from exc
 
     row = ScanHistory(

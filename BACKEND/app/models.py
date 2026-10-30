@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
@@ -9,6 +9,11 @@ from app.database import Base
 
 def _uuid() -> str:
     return str(uuid.uuid4())
+
+
+def _utcnow() -> datetime:
+    # Naive UTC: callers format as isoformat() + "Z".
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Operator(Base):
@@ -21,7 +26,7 @@ class Operator(Base):
     badge_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
     department: Mapped[str | None] = mapped_column(String(128), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
 class Device(Base):
@@ -31,7 +36,7 @@ class Device(Base):
     operator_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     public_key: Mapped[str] = mapped_column(Text, nullable=False)
     device_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    registered_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    registered_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -49,8 +54,9 @@ class TestRecord(Base):
     delta_e: Mapped[float] = mapped_column(Float, default=0)
     corrected_rgb: Mapped[str] = mapped_column(String(128), default="")
     signature: Mapped[str] = mapped_column(Text, default="")
-    signature_valid: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    received_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    signature_valid: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 1 ok, 0 bad, None unverifiable
+    payload_canonical: Mapped[str] = mapped_column(Text, default="")  # exact signed bytes
+    received_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
 class ScanHistory(Base):
@@ -63,4 +69,4 @@ class ScanHistory(Base):
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     mean_rgb: Mapped[str] = mapped_column(String(64), default="")
     notes: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)

@@ -35,14 +35,20 @@ def _srgb_to_lab(r: float, g: float, b: float) -> tuple[float, float, float]:
     return 116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)
 
 
+MAX_PIXELS = 40_000_000  # ~8K×5K; blocks decompression bombs before decoding
+
+
 def predict_image(data: bytes) -> dict:
-    image = Image.open(io.BytesIO(data)).convert("RGB")
+    image = Image.open(io.BytesIO(data))  # lazy: header only
     w, h = image.size
+    if w * h > MAX_PIXELS:
+        raise ValueError(f"image is {w}×{h}px, limit is {MAX_PIXELS:,} pixels")
+    image = image.convert("RGB")
     crop = image.crop((int(w * 0.25), int(h * 0.35), int(w * 0.75), int(h * 0.75)))
     if crop.size[0] == 0 or crop.size[1] == 0:
         crop = image
     crop = crop.resize((64, 64))
-    pixels = list(crop.getdata())
+    pixels = list(crop.get_flattened_data())
     n = max(1, len(pixels))
     mean = [sum(p[i] for p in pixels) / n for i in range(3)]
     var = sum(sum((p[i] - mean[i]) ** 2 for i in range(3)) for p in pixels) / n

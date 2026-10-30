@@ -17,6 +17,7 @@ def history(
         db.query(ScanHistory)
         .filter(ScanHistory.operator_id == operator.id)
         .order_by(ScanHistory.created_at.desc())
+        .limit(50)
         .all()
     )
     return {

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Device, Operator
 from app.security import get_current_operator
+from app.signatures import load_public_key
 
 router = APIRouter()
 
@@ -26,6 +27,12 @@ def register_device(
     public_key = body.publicKey or body.publicKeySpki
     if not public_key:
         raise HTTPException(status_code=400, detail="publicKey is required")
+    try:
+        load_public_key(public_key)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not body.deviceId or len(body.deviceId) > 128:
+        raise HTTPException(status_code=400, detail="deviceId is required (max 128 chars)")
     existing = db.get(Device, body.deviceId)
     if existing and existing.operator_id != operator.id:
         raise HTTPException(status_code=409, detail="Device ID is already registered to another operator")

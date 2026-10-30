@@ -1,6 +1,6 @@
 import time
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from app.config import DATABASE_URL
@@ -24,6 +24,14 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def add_missing_columns() -> None:
+    """create_all() never alters existing tables; add columns introduced after first deploy."""
+    columns = {c["name"] for c in inspect(engine).get_columns("test_records")}
+    if "payload_canonical" not in columns:
+        with engine.begin() as conn:
+            conn.exec_driver_sql("ALTER TABLE test_records ADD COLUMN payload_canonical TEXT DEFAULT ''")
 
 
 def wait_for_database(attempts: int = 30, delay: float = 1.0) -> None:
