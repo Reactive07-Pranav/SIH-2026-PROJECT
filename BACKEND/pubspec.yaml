@@ -1,0 +1,59 @@
+
+
+name: drug_test_app
+description: Field drug-test evidentiary logging system
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.1.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI
+  cupertino_icons: ^1.0.6
+  google_fonts: ^6.1.0
+  intl: ^0.19.0
+
+  # Camera
+  camera: ^0.11.0+2
+  image: ^4.1.4   # pure-Dart image manipulation
+
+  # Storage
+  sqflite: ^2.3.0
+  path_provider: ^2.1.1
+  flutter_secure_storage: ^9.0.0
+  path: ^1.8.3
+
+  # Networking
+  http: ^1.1.0
+  connectivity_plus: ^5.0.2
+
+  # Location
+  geolocator: ^11.0.0
+
+  # Crypto
+  pointycastle: ^3.7.3     # ECDSA P-256
+  asn1lib: ^1.5.0
+  crypto: ^3.0.3            # SHA-256
+
+  # State management
+  provider: ^6.1.1
+
+  # Permissions
+  permission_handler: ^11.1.0
+
+  # UUID
+  uuid: ^4.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
