@@ -1,5 +1,9 @@
 # Field Evidence Logger
 
+**Live demo:** https://sih-2026-project-brown.vercel.app · API: https://sih-evidence-api.onrender.com/api/health
+
+> Demo logins: `admin` / `admin123` (supervisor), `OP001` / `test123` (officer). The free API sleeps when idle; the first request can take up to a minute.
+
 Smart India Hackathon 2026. A field officer photographs a presumptive drug-test strip next to a colour card. The app colour-corrects the photo, classifies the strip (positive / negative / inconclusive), and **signs the record on the device** before it leaves the phone. Supervisors see every synced record on a map and can prove any record is untampered.
 
 - **Calibrated, not eyeballed.** A homography warp of the colour card plus a least-squares colour matrix corrects the strip colour; the verdict is read off a ΔE scale against reference colours.
