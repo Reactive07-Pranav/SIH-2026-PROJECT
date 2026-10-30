@@ -1,0 +1,32 @@
+# Render Blueprint: the FastAPI backend + a Postgres database.
+# Render dashboard → New → Blueprint → pick this repo → Apply.
+services:
+  - type: web
+    name: sih-evidence-api
+    runtime: python
+    plan: free
+    rootDir: BACKEND
+    buildCommand: pip install -r requirements.txt psycopg2-binary==2.9.10
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sih-evidence-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true          # Render creates a random secret; it never appears in the repo
+      - key: SEED_DEMO
+        value: "1"                   # demo accounts + synthetic records; set to 0 for real use
+      - key: CORS_ORIGIN_REGEX
+        value: https://sih-2026-project[a-z0-9-]*\.vercel\.app
+      - key: CORS_ORIGINS
+        value: http://localhost:5173
+
+databases:
+  - name: sih-evidence-db
+    plan: free
+    databaseName: evidence
+    user: evidence

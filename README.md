@@ -10,9 +10,9 @@ Smart India Hackathon 2026. A field officer photographs a presumptive drug-test 
 ## Layout
 
 ```
-api/index.py        Vercel Python function: serves the FastAPI app at /api/*
-vercel.json         one Vercel project: static Vite build + the API function
-BACKEND/            FastAPI + SQLAlchemy API (SQLite locally, Postgres in Docker / Vercel)
+render.yaml         Render Blueprint: the API web service + Postgres
+vercel.json         Vercel: static build of FRONTEND
+BACKEND/            FastAPI + SQLAlchemy API (SQLite locally, Postgres on Render / Docker)
   app/              main, config, models, security (JWT), signatures (ECDSA), predict (quick scan), demo (seed data)
   app/routers/      auth, records, operators, scan, history, health
   scripts/          seed_demo.py: demo accounts + synthetic signed records
@@ -81,27 +81,34 @@ cd BACKEND
 .venv\Scripts\python -m pytest -q
 ```
 
-Covers login, no built-in accounts on a plain boot, the Vercel entry point and its requirements, the supervisor self-promotion block, signed-record verification (WebCrypto raw r‖s and DER formats), tamper detection, operator scoping, date filters, stats, upload decompression-bomb rejection, and SPA path traversal.
+Covers login, no built-in accounts on a plain boot, CORS for Vercel deployments, the supervisor self-promotion block, signed-record verification (WebCrypto raw r‖s and DER formats), tamper detection, operator scoping, date filters, stats, upload decompression-bomb rejection, and SPA path traversal.
 
 ```bash
 cd FRONTEND
 npm run build                    # tsc --noEmit + vite build
 ```
 
-## Deploy on Vercel (UI + API in one project)
+## Deploy: backend on Render, frontend on Vercel
 
-1. Import the GitHub repo into Vercel. Keep the **root directory** as the repo root; `vercel.json` sets the build (`FRONTEND` → `FRONTEND/dist`) and the Python function (`api/index.py`).
-2. Add environment variables (Project → Settings → Environment Variables):
+### 1. Backend + database on Render
 
-   | Name | Value |
-   | --- | --- |
-   | `JWT_SECRET` | a long random string: `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
-   | `DATABASE_URL` | a Postgres URL (Vercel Postgres / Neon). Without it the API uses SQLite in `/tmp`, which is wiped on every cold start. |
-   | `SEED_DEMO` | `1` for a demo deployment (demo accounts + records); leave unset for real use |
+1. Render dashboard → **New → Blueprint** → connect this GitHub repo → **Apply**. `render.yaml` creates:
+   - `sih-evidence-api`: a Python web service from `BACKEND/` (`uvicorn app.main:app`);
+   - `sih-evidence-db`: a Postgres database, wired in as `DATABASE_URL`.
+   Render generates `JWT_SECRET` itself, so it never appears in the repo or in chat.
+2. When it is live, open `https://<service>.onrender.com/api/health` → `{"status":"ok","demo":true,...}`. Copy the service URL.
 
-3. Deploy. The UI and `/api/*` share one origin, so no CORS or `VITE_API_URL` is needed.
+`SEED_DEMO=1` is set, so the demo accounts exist. Set it to `0` in Render for real use.
 
-Check: `https://<your-app>.vercel.app/api/health` → `{"status":"ok", ...}`. Any missing setting is listed under `warnings`.
+### 2. Frontend on Vercel
+
+1. Vercel → **Add New → Project** → import this repo. Keep the root directory as the repo root; `vercel.json` builds `FRONTEND`.
+2. Add the environment variable `VITE_API_URL` = the Render URL from step 1 (no trailing slash), then **Deploy**.
+3. The API accepts any `https://sih-2026-project…vercel.app` origin (`CORS_ORIGIN_REGEX` in `render.yaml`). If your Vercel project has another name, change that value in Render.
+
+`VITE_API_URL` is baked in at build time. After changing it, redeploy on Vercel.
+
+**Free-tier notes.** A free Render service sleeps after about 15 minutes idle, and the first request then takes up to a minute: open the app once before the demo. Render's free Postgres expires after 30 days unless you upgrade.
 
 ## Docker (Postgres + both apps)
 

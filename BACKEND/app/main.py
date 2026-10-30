@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.config import FRONTEND_DIST, SEED_DEMO, cors_origin_list
+from app.config import CORS_ORIGIN_REGEX, FRONTEND_DIST, SEED_DEMO, cors_origin_list
 from app.database import Base, add_missing_columns, engine, wait_for_database
 from app.routers import api_router
 
@@ -38,6 +38,7 @@ app = FastAPI(title="Drug Evidence API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origin_list(),  # from CORS_ORIGINS; never "*" with credentials=True
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
